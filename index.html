@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Forget Me Not: The Human Cost of War</title>
+
+    <!-- Social Share Meta Tags -->
+    <meta property="og:title" content="Forget Me Not - The Human Cost of War">
+    <meta property="og:description"
+        content="Visualizing global conflict casualties (1900-2025). A homage to the poppy field.">
+    <meta property="og:image" content="https://dr.eamer.dev/datavis/forget_me_not/social-share.png">
+    <meta property="og:image:width" content="1492">
+    <meta property="og:image:height" content="948">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://dr.eamer.dev/datavis/forget_me_not/">
+    <meta property="og:type" content="website">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Forget Me Not - The Human Cost of War">
+    <meta name="twitter:description" content="Visualizing global conflict casualties (1900-2025).">
+    <meta name="twitter:image" content="https://dr.eamer.dev/datavis/forget_me_not/social-share.png">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
+
+        :root {
+            /* --- THEME: CLEAN CREAM --- */
+            --bg-color: #f3efe6;
+
+            --text-color: #2d2d2d;
+            --header-color: #8b0000;
+            --sub-text-color: #5c5c5c;
+
+            --legend-bg: rgba(255, 253, 250, 0.90);
+            --legend-border: #d4c5b0;
+
+            --axis-line-color: #5c4d3c;
+            --stem-color: #2e3b1f;
+            --flower-color: #779ecb;
+            --petal-blend: multiply;
+        }
+
+        body {
+            /* Gradient applied to scroll container or body? 
+               User wants "to the right... hinting at a storm". 
+               If the timeline is long, a fixed gradient on body might not feel like "to the right" of the timeline.
+               But a gradient on the 50,000px wide div might be invisible locally.
+               Let's try a fixed gradient on the bg that darkens slightly.
+            */
+            background: linear-gradient(to right, #edeae2 0%, #d4d4d4 50%, #6e7f8f 100%);
+            /* 
+               Actually, since the user said "darken the sky gradient TO THE RIGHT" and it's a timeline, 
+               Use a fixed background that represents the viewport? 
+               No, "hinting at a storm" implies the future (right) is stormy. 
+               Since it scrolls, let's put it on the body but make it subtle? 
+               Or maybe on the content div so it gets darker as you scroll to the present day?
+               Let's put it on #chart-content.
+            */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Lato', sans-serif;
+            overflow: hidden;
+            touch-action: pan-x;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Playfair Display', serif;
+            color: var(--header-color);
+        }
+
+        a {
+            color: var(--header-color);
+            text-decoration: underline;
+        }
+
+        #chart-scroll-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        #chart-scroll-container::-webkit-scrollbar-track {
+            background: #eaddcf;
+        }
+
+        #chart-scroll-container::-webkit-scrollbar-thumb {
+            background: #8b7355;
+            border-radius: 4px;
+        }
+
+        /* Flower Sway Animation */
+        @keyframes sway {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(1.5deg);
+            }
+
+            75% {
+                transform: rotate(-1.5deg);
+            }
+        }
+
+        @keyframes deep-sway {
+
+            0%,
+            100% {
+                transform: rotate(0deg) translateX(0);
+            }
+
+            33% {
+                transform: rotate(2deg) translateX(2px);
+            }
+
+            66% {
+                transform: rotate(-2deg) translateX(-2px);
+            }
+        }
+
+        /* Pulsing Glow for ongoing conflicts */
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                filter: drop-shadow(0 0 2px rgba(220, 20, 60, 0.4)) drop-shadow(0 0 4px rgba(220, 20, 60, 0.2));
+            }
+
+            50% {
+                filter: drop-shadow(0 0 5px rgba(220, 20, 60, 0.8)) drop-shadow(0 0 12px rgba(255, 69, 0, 0.6));
+            }
+        }
+
+        .flower-group {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            opacity: 1;
+            transition: opacity 0.6s ease-out;
+        }
+
+        .flower-group.waiting {
+            opacity: 0;
+            transition: opacity 2s ease-in-out;
+        }
+
+        .flower-group.bloomed {
+            opacity: 1;
+            transition: opacity 4s ease-in-out;
+        }
+
+        .flower-group.ongoing .flower-head {
+            animation: pulse-glow 4s ease-in-out infinite;
+        }
+
+        .flower-group .stem {
+            opacity: 1;
+            stroke-width: 2px;
+        }
+
+        .stem {
+            fill: none;
+            stroke-linecap: round;
+            opacity: 0.8;
+            mix-blend-mode: multiply;
+        }
+
+        .petal {
+            fill: var(--flower-color);
+            mix-blend-mode: var(--petal-blend);
+            transition: transform 0.3s ease;
+        }
+
+        /* Interaction States */
+        .flower-group:hover {
+            z-index: 100;
+        }
+
+        .flower-group:hover .stem {
+            stroke: #000;
+            opacity: 1;
+            stroke-width: 2px;
+        }
+
+        .flower-group:hover .petal {
+            opacity: 1;
+        }
+
+        .axis-text {
+            font-size: 14px;
+            fill: var(--text-color);
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .axis-text {
+                font-size: 10px;
+            }
+        }
+
+        .axis-line {
+            stroke: var(--axis-line-color);
+            stroke-width: 2px;
+        }
+
+        #tooltip {
+            position: fixed;
+            background: rgba(252, 250, 247, 0.98);
+            border: 1px solid var(--legend-border);
+            padding: 16px;
+            border-radius: 2px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 320px;
+            width: 90vw;
+            z-index: 1000;
+            font-size: 0.9rem;
+            border-top: 4px solid var(--flower-color);
+            color: var(--text-color);
+        }
+
+        @media (max-width: 768px) {
+            #tooltip {
+                bottom: 20px !important;
+                left: 50% !important;
+                top: auto !important;
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: none;
+                text-align: center;
+                border-top: none;
+                border-bottom: 4px solid var(--flower-color);
+            }
+
+            #tooltip .grid {
+                text-align: left;
+            }
+        }
+
+        .soil-gradient {
+            display: none;
+        }
+
+        .texture {
+            display: none;
+        }
+
+        /* Header Interaction */
+        #header-trigger {
+            cursor: pointer;
+            position: relative;
+            z-index: 60;
+            cursor: pointer;
+            /* Higher than flowers */
+        }
+
+        /* Help Icon on timeline */
+        .timeline-help-icon {
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--header-color);
+            color: var(--header-color);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            text-align: center;
+            line-height: 22px;
+            font-size: 14px;
+            font-family: serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.6;
+        }
+
+        .timeline-help-icon:hover {
+            opacity: 1;
+            background: #fff;
+            transform: scale(1.1);
+        }
+
+        #header-trigger:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #header-trigger:hover h1 {
+            color: var(--region-europe);
+            /* Subtle hint of interactivity using a color from the chart or just darkening */
+        }
+
+        #info-modal {
+            background-color: rgba(0, 0, 0, 0.5);
+            /* Dimmed backdrop */
+        }
+
+        #info-modal .modal-content {
+            background-color: #fff;
+            /* Solid opaque background */
+            border: 2px solid var(--header-color);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            opacity: 1;
+        }
+
+        .event-marker line {
+            stroke: rgba(45, 45, 45, 0.4);
+            stroke-width: 1.5;
+            stroke-dasharray: 4, 4;
+        }
+
+        .event-marker text {
+            font-family: 'Playfair Display', serif;
+            font-size: 14px;
+            fill: var(--text-color);
+            text-anchor: middle;
+            font-weight: bold;
+        }
+
+        #wind-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            mix-blend-mode: multiply;
+        }
+
+        /* Modal */
+        #info-modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            transition: opacity 0.3s ease;
+            touch-action: auto;
+        }
+
+        #info-modal.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #info-modal .modal-content {
+            background-color: var(--bg-color);
+            border: 1px solid var(--legend-border);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Mobile modal - remove max-height constraint */
+        @media (max-width: 768px) {
+            #info-modal .modal-content {
+                max-height: none;
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* Modal content styles - Tailwind CDN doesn't support arbitrary values */
+        #info-modal .modal-content {
+            color: var(--text-color);
+        }
+
+        #info-modal .modal-content h2,
+        #info-modal .modal-content h3,
+        #info-modal .modal-content .text-header {
+            color: var(--header-color);
+        }
+
+        #info-modal .modal-content .text-sub {
+            color: var(--sub-text-color);
+        }
+
+        #info-modal .modal-content .legend-box {
+            background-color: var(--legend-bg);
+            border-color: var(--legend-border);
+        }
+
+        #info-modal .modal-content .border-header {
+            border-color: var(--header-color);
+        }
+
+        #info-modal .modal-content .border-legend {
+            border-color: var(--legend-border);
+        }
+
+        #info-modal .modal-content a {
+            color: var(--header-color);
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen">
+
+    <!-- Header -->
+    <div class="fixed top-0 left-0 w-full z-40 px-6 py-8 pointer-events-none text-left">
+        <div id="header-trigger" class="pb-4 pointer-events-auto inline-block" onclick="openModal()">
+            <h1 class="text-4xl md:text-6xl font-bold leading-tight tracking-tight text-black">
+                Forget Me Not</h1>
+            <p class="text-base md:text-xl text-black mt-2 tracking-wide font-normal">The
+                Human Cost of War</p>
+
+            <!-- Subtler Help Icon below subtitle -->
+            <div class="mt-4 pt-2">
+                <button onclick="openModal()"
+                    class="w-8 h-8 rounded-full border border-gray-400 flex items-center justify-center 
+                        bg-transparent hover:bg-gray-100 hover:border-black transition-all cursor-pointer text-gray-500 hover:text-black">
+                    <span class="font-serif font-bold text-lg">?</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scrollable Chart Area -->
+    <div id="chart-scroll-container"
+        class="absolute inset-0 z-0 overflow-x-auto overflow-y-hidden cursor-grab active:cursor-grabbing">
+        <div id="chart-content" class="h-full relative min-h-[400px]">
+            <canvas id="wind-layer"></canvas>
+        </div>
+
+
+    </div>
+
+    <div id="tooltip"></div>
+
+    <!-- Info Modal -->
+    <div id="info-modal" class="fixed inset-0 z-50 flex items-start justify-center p-4 hidden overflow-y-auto">
+        <div class="modal-content rounded-lg max-w-2xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
+            <button onclick="closeModal()"
+                class="absolute top-4 right-4 text-sub text-2xl font-bold focus:outline-none">&times;</button>
+            <h2 class="text-3xl font-bold mb-6 font-serif">Conflict Casualties <span
+                    class="text-lg font-normal text-sub block mt-1">(1900 &mdash; 2025)</span></h2>
+
+            <div class="space-y-6">
+                <section>
+                    <h3 class="text-2xl font-bold mb-4 font-serif border-b-2 border-header pb-2">
+                        How to Read the Chart</h3>
+                    <div class="legend-box p-5 rounded-sm border-2 shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm mb-4">
+                            <div>
+                                <span class="font-bold block text-base mb-2 text-header">Stem Span</span>
+                                <p class="leading-relaxed">From start year (root) to end year (bloom). A wider arch
+                                    means a longer conflict.</p>
+                            </div>
+                            <div>
+                                <span class="font-bold block text-base mb-2 text-header">Flower
+                                    Height</span>
+                                <p class="leading-relaxed">Annual casualty rate (Intensity). Higher flowers mean more
+                                    deaths per year.</p>
+                            </div>
+                            <div>
+                                <span class="font-bold block text-base mb-2 text-header">Flower
+                                    Size</span>
+                                <p class="leading-relaxed">Total number of casualties.</p>
+                            </div>
+                        </div>
+                        <div class="mt-5 pt-5 border-t-2 border-legend">
+                            <span class="font-bold block text-base mb-3 text-header">Region (Center
+                                Color)</span>
+                            <div class="flex flex-wrap gap-4 text-sm">
+                                <span class="flex items-center font-semibold"><span
+                                        class="w-4 h-4 rounded-full mr-2" style="background-color: #b91c1c;"></span>
+                                    Europe</span>
+                                <span class="flex items-center font-semibold"><span
+                                        class="w-4 h-4 rounded-full mr-2" style="background-color: #d97706;"></span>
+                                    Asia</span>
+                                <span class="flex items-center font-semibold"><span
+                                        class="w-4 h-4 rounded-full mr-2" style="background-color: #15803d;"></span>
+                                    Africa</span>
+                                <span class="flex items-center font-semibold"><span
+                                        class="w-4 h-4 rounded-full mr-2" style="background-color: #1d4ed8;"></span>
+                                    Middle East</span>
+                                <span class="flex items-center font-semibold"><span
+                                        class="w-4 h-4 rounded-full mr-2" style="background-color: #7e22ce;"></span>
+                                    Americas</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3 class="text-2xl font-bold mb-4 font-serif border-b-2 border-header pb-2">
+                        Inspiration & Data</h3>
+                    <p class="leading-relaxed mb-3">This visualization is my homage to <a
+                            href="http://www.poppyfield.org/" target="_blank" rel="noopener noreferrer"
+                            class="underline font-semibold hover:opacity-80">Poppy Field</a>
+                        by Valentina D'Efilippo, a visualization made in 2014 to commemorate the centenary of World War
+                        I. It uses the poppy—a symbol of remembrance—to visualize the human cost of conflict. If you
+                        find my attempt to be powerful, it is owed entirely to that work.</p>
+                    <p class="leading-relaxed mb-4">This data on conflicts and casualties is sourced from various
+                        historical records, including the <a href="https://ucdp.uu.se/" target="_blank"
+                            rel="noopener noreferrer"
+                            class="underline font-semibold hover:opacity-80">Uppsala Conflict
+                            Data Program (UCDP)</a> and other academic sources. Note that casualties are inherently
+                        estimated, and vary by source.</p>
+                    <div class="mt-6 pt-4 border-t border-legend text-right">
+                        <p class="font-serif font-semibold text-base"><a href="https://lukesteuber.com" target="_blank"
+                                rel="noopener noreferrer"
+                                class="transition-colors">Luke
+                                Steuber</a></p>
+                        <p class="text-sm text-sub mt-1">Dec 10, 2025</p>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const safetyTimer = setTimeout(() => {
+                const container = document.getElementById('chart-content');
+                if (!container || !container.hasChildNodes()) {
+                    if (container) container.innerHTML = "<div class='p-10 text-center text-red-800'>Visualization loading...</div>";
+                    initChart();
+                }
+            }, 500);
+
+            try {
+                initChart();
+                clearTimeout(safetyTimer);
+            } catch (e) {
+                console.error("Chart Init Error:", e);
+            }
+
+            // Modal Logic
+            const infoModal = document.getElementById('info-modal');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+
+            function toggleModal() {
+                infoModal.classList.toggle('hidden');
+            }
+
+            if (closeModalBtn) closeModalBtn.addEventListener('click', toggleModal);
+            if (infoModal) infoModal.addEventListener('click', (e) => {
+                if (e.target === infoModal) {
+                    toggleModal();
+                }
+            });
+        });
+
+        function initChart() {
+            // Data
+            const data = [
+                { "n": "Boxer Rebellion", "s": 1899, "e": 1901, "d": 100000, "r": "Asia" },
+                { "n": "Philippine-American War", "s": 1899, "e": 1902, "d": 220000, "r": "Asia" },
+                { "n": "War of 1000 Days", "s": 1899, "e": 1902, "d": 120000, "r": "Americas" },
+                { "n": "Second Boer War", "s": 1899, "e": 1902, "d": 75000, "r": "Africa" },
+                { "n": "Herero & Nama Genocide", "s": 1904, "e": 1908, "d": 85000, "r": "Africa" },
+                { "n": "Russo-Japanese War", "s": 1904, "e": 1905, "d": 130000, "r": "Asia" },
+                { "n": "Maji Maji Rebellion", "s": 1905, "e": 1907, "d": 250000, "r": "Africa" },
+                { "n": "Mexican Revolution", "s": 1910, "e": 1920, "d": 2000000, "r": "Americas" },
+                { "n": "Italo-Turkish War", "s": 1911, "e": 1912, "d": 20000, "r": "Middle East" },
+                { "n": "Xinhai Revolution", "s": 1911, "e": 1912, "d": 220000, "r": "Asia" },
+                { "n": "Balkan Wars", "s": 1912, "e": 1913, "d": 140000, "r": "Europe" },
+                { "n": "World War I", "s": 1914, "e": 1918, "d": 20000000, "r": "Europe" },
+                { "n": "Armenian Genocide", "s": 1915, "e": 1917, "d": 1200000, "r": "Middle East" },
+                { "n": "Russian Civil War", "s": 1917, "e": 1922, "d": 9000000, "r": "Europe" },
+                { "n": "Finnish Civil War", "s": 1918, "e": 1918, "d": 37000, "r": "Europe" },
+                { "n": "Polish-Soviet War", "s": 1919, "e": 1921, "d": 100000, "r": "Europe" },
+                { "n": "Greco-Turkish War", "s": 1919, "e": 1922, "d": 200000, "r": "Europe" },
+                { "n": "Rif War", "s": 1921, "e": 1926, "d": 65000, "r": "Africa" },
+                { "n": "Great Syrian Revolt", "s": 1925, "e": 1927, "d": 12000, "r": "Middle East" },
+                { "n": "Cristero War", "s": 1926, "e": 1929, "d": 90000, "r": "Americas" },
+                { "n": "Chinese Civil War", "s": 1927, "e": 1949, "d": 8000000, "r": "Asia" },
+                { "n": "Manchurian Incident", "s": 1931, "e": 1932, "d": 30000, "r": "Asia" },
+                { "n": "Chaco War", "s": 1932, "e": 1935, "d": 90000, "r": "Americas" },
+                { "n": "Italian Invasion of Ethiopia", "s": 1935, "e": 1937, "d": 760000, "r": "Africa" },
+                { "n": "Spanish Civil War", "s": 1936, "e": 1939, "d": 500000, "r": "Europe" },
+                { "n": "Second Sino-Japanese War", "s": 1937, "e": 1945, "d": 20000000, "r": "Asia" },
+                { "n": "Winter War", "s": 1939, "e": 1940, "d": 150000, "r": "Europe" },
+                { "n": "World War II", "s": 1939, "e": 1945, "d": 75000000, "r": "Europe" },
+                { "n": "Indonesian Revolution", "s": 1945, "e": 1949, "d": 100000, "r": "Asia" },
+                { "n": "Greek Civil War", "s": 1946, "e": 1949, "d": 158000, "r": "Europe" },
+                { "n": "First Indochina War", "s": 1946, "e": 1954, "d": 600000, "r": "Asia" },
+                { "n": "Partition of India", "s": 1947, "e": 1948, "d": 1500000, "r": "Asia" },
+                { "n": "Malayan Emergency", "s": 1948, "e": 1960, "d": 11000, "r": "Asia" },
+                { "n": "1948 Arab-Israeli War", "s": 1948, "e": 1949, "d": 20000, "r": "Middle East" },
+                { "n": "La Violencia", "s": 1948, "e": 1958, "d": 200000, "r": "Americas" },
+                { "n": "Korean War", "s": 1950, "e": 1953, "d": 3000000, "r": "Asia" },
+                { "n": "Mau Mau Uprising", "s": 1952, "e": 1960, "d": 25000, "r": "Africa" },
+                { "n": "Algerian War", "s": 1954, "e": 1962, "d": 1000000, "r": "Africa" },
+                { "n": "First Sudanese Civil War", "s": 1955, "e": 1972, "d": 500000, "r": "Africa" },
+                { "n": "Vietnam War", "s": 1955, "e": 1975, "d": 3500000, "r": "Asia" },
+                { "n": "Hungarian Revolution", "s": 1956, "e": 1956, "d": 3000, "r": "Europe" },
+                { "n": "Tibetan Uprising", "s": 1959, "e": 1959, "d": 87000, "r": "Asia" },
+                { "n": "Congo Crisis", "s": 1960, "e": 1965, "d": 100000, "r": "Africa" },
+                { "n": "Guatemalan Civil War", "s": 1960, "e": 1996, "d": 200000, "r": "Americas" },
+                { "n": "Eritrean War of Independence", "s": 1961, "e": 1991, "d": 250000, "r": "Africa" },
+                { "n": "North Yemen Civil War", "s": 1962, "e": 1970, "d": 150000, "r": "Middle East" },
+                { "n": "Colombian Conflict", "s": 1964, "e": 2016, "d": 260000, "r": "Americas" },
+                { "n": "Indonesian Mass Killings", "s": 1965, "e": 1966, "d": 500000, "r": "Asia" },
+                { "n": "Six-Day War", "s": 1967, "e": 1967, "d": 20000, "r": "Middle East" },
+                { "n": "Nigerian Civil War", "s": 1967, "e": 1970, "d": 2000000, "r": "Africa" },
+                { "n": "The Troubles", "s": 1968, "e": 1998, "d": 3500, "r": "Europe" },
+                { "n": "Bangladesh Liberation War", "s": 1971, "e": 1971, "d": 1500000, "r": "Asia" },
+                { "n": "Ethiopian Civil War", "s": 1974, "e": 1991, "d": 1000000, "r": "Africa" },
+                { "n": "Angolan Civil War", "s": 1975, "e": 2002, "d": 500000, "r": "Africa" },
+                { "n": "Lebanese Civil War", "s": 1975, "e": 1990, "d": 150000, "r": "Middle East" },
+                { "n": "Cambodian Genocide", "s": 1975, "e": 1979, "d": 2000000, "r": "Asia" },
+                { "n": "Mozambican Civil War", "s": 1977, "e": 1992, "d": 1000000, "r": "Africa" },
+                { "n": "Ogaden War", "s": 1977, "e": 1978, "d": 15000, "r": "Africa" },
+                { "n": "Uganda-Tanzania War", "s": 1978, "e": 1979, "d": 3000, "r": "Africa" },
+                { "n": "Sino-Vietnamese War", "s": 1979, "e": 1979, "d": 30000, "r": "Asia" },
+                { "n": "Soviet-Afghan War", "s": 1979, "e": 1989, "d": 1500000, "r": "Middle East" },
+                { "n": "Salvadoran Civil War", "s": 1979, "e": 1992, "d": 75000, "r": "Americas" },
+                { "n": "Iran-Iraq War", "s": 1980, "e": 1988, "d": 1000000, "r": "Middle East" },
+                { "n": "Peruvian Internal Conflict", "s": 1980, "e": 2000, "d": 70000, "r": "Americas" },
+                { "n": "Second Sudanese Civil War", "s": 1983, "e": 2005, "d": 2000000, "r": "Africa" },
+                { "n": "Sri Lankan Civil War", "s": 1983, "e": 2009, "d": 100000, "r": "Asia" },
+                { "n": "Lord's Resistance Army Insurgency", "s": 1987, "e": 2025, "d": 100000, "r": "Africa" },
+                { "n": "Nagorno-Karabakh Wars", "s": 1988, "e": 2023, "d": 45000, "r": "Asia" },
+                { "n": "Liberian Civil Wars", "s": 1989, "e": 2003, "d": 250000, "r": "Africa" },
+                { "n": "Gulf War", "s": 1990, "e": 1991, "d": 50000, "r": "Middle East" },
+                { "n": "Somali Civil War", "s": 1991, "e": 2025, "d": 550000, "r": "Africa" },
+                { "n": "Sierra Leone Civil War", "s": 1991, "e": 2002, "d": 70000, "r": "Africa" },
+                { "n": "Yugoslav Wars", "s": 1991, "e": 2001, "d": 140000, "r": "Europe" },
+                { "n": "Algerian Civil War", "s": 1991, "e": 2002, "d": 200000, "r": "Africa" },
+                { "n": "Tajikistani Civil War", "s": 1992, "e": 1997, "d": 100000, "r": "Asia" },
+                { "n": "Burundian Civil War", "s": 1993, "e": 2005, "d": 300000, "r": "Africa" },
+                { "n": "Rwandan Genocide", "s": 1994, "e": 1994, "d": 800000, "r": "Africa" },
+                { "n": "First Chechen War", "s": 1994, "e": 1996, "d": 80000, "r": "Europe" },
+                { "n": "First Congo War", "s": 1996, "e": 1997, "d": 250000, "r": "Africa" },
+                { "n": "Second Congo War", "s": 1998, "e": 2003, "d": 5400000, "r": "Africa" },
+                { "n": "Second Chechen War", "s": 1999, "e": 2009, "d": 80000, "r": "Europe" },
+                { "n": "Eritrean-Ethiopian War", "s": 1998, "e": 2000, "d": 100000, "r": "Africa" },
+                { "n": "Second Intifada", "s": 2000, "e": 2005, "d": 6000, "r": "Middle East" },
+                { "n": "War in Afghanistan", "s": 2001, "e": 2021, "d": 240000, "r": "Middle East" },
+                { "n": "Iraq War", "s": 2003, "e": 2011, "d": 600000, "r": "Middle East" },
+                { "n": "War in Darfur", "s": 2003, "e": 2025, "d": 400000, "r": "Africa" },
+                { "n": "Kivu Conflict", "s": 2004, "e": 2025, "d": 120000, "r": "Africa" },
+                { "n": "Mexican Drug War", "s": 2006, "e": 2025, "d": 450000, "r": "Americas" },
+                { "n": "Boko Haram Insurgency", "s": 2009, "e": 2025, "d": 350000, "r": "Africa" },
+                { "n": "Syrian Civil War", "s": 2011, "e": 2025, "d": 620000, "r": "Middle East" },
+                { "n": "Libyan Civil War", "s": 2011, "e": 2020, "d": 50000, "r": "Africa" },
+                { "n": "Northern Mali Conflict", "s": 2012, "e": 2025, "d": 25000, "r": "Africa" },
+                { "n": "South Sudanese Civil War", "s": 2013, "e": 2020, "d": 400000, "r": "Africa" },
+                { "n": "Yemeni Civil War", "s": 2014, "e": 2025, "d": 380000, "r": "Middle East" },
+                { "n": "War against Islamic State", "s": 2014, "e": 2019, "d": 80000, "r": "Middle East" },
+                { "n": "Tigray War", "s": 2020, "e": 2022, "d": 600000, "r": "Africa" },
+                { "n": "Myanmar Civil War", "s": 2021, "e": 2025, "d": 50000, "r": "Asia" },
+                { "n": "Russian Invasion of Ukraine", "s": 2022, "e": 2025, "d": 475000, "r": "Europe" },
+                { "n": "Sudan Conflict", "s": 2023, "e": 2025, "d": 250000, "r": "Africa" },
+                { "n": "Israel-Gaza War", "s": 2023, "e": 2025, "d": 90000, "r": "Middle East" }
+            ];
+
+            data.forEach(d => {
+                d.duration = (d.e === 2024 || d.e === 2025 ? 2026 : d.e) - d.s;
+                if (d.duration < 0.8) d.duration = 0.8;
+                d.rate = d.d / d.duration;
+            });
+
+
+            const container = document.getElementById('chart-scroll-container');
+            if (!container) return;
+
+            // Apply Storm Gradient to CONTENT div so it spans the full width
+            const contentDiv = document.getElementById('chart-content');
+            // Gradient from very light grey (left/past) to dark grey (right/future storm)
+            contentDiv.style.background = "linear-gradient(to right, #f2f2f2 0%, #e2e2e2 40%, #a8a8a8 85%, #787878 100%)";
+
+            // X-Axis Compression
+            // X-Axis Compression (Decompressed for better visibility)
+            const pixelsPerYear = window.innerWidth < 768 ? 25 : 40;
+            const startYear = 1897;
+            const endYear = 2026;
+            const totalYears = endYear - startYear;
+            const width = totalYears * pixelsPerYear;
+
+            // Fix Gradient Truncation: Ensure the content div grows to the full chart width
+            contentDiv.style.width = `${width}px`;
+
+            let height = container.clientHeight;
+            if (height < 300) height = window.innerHeight * 0.7;
+
+            // Push ground lower to reduce bottom space and give more room for sky
+            // But leave enough room for event labels and axis text
+            const groundY = height - 60;
+            const margin = { left: 40, right: 100 };
+
+            const svg = d3.select("#chart-content").append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            const xScale = d3.scaleLinear()
+                .domain([startYear, endYear])
+                .range([margin.left, width - margin.right]);
+
+            // Flower Size -> Total Deaths
+            const rScale = d3.scaleSqrt()
+                .domain([0, 20000000])
+                .range([18, 140]);
+
+            // Stem Height -> Casualty Rate (Intensity)
+            // Log scale for extreme range
+            const heightScale = d3.scaleLog()
+                .domain([500, 15000000])
+                .range([50, groundY - 100])
+                .clamp(true);
+
+            // Stem Thickness -> Duration (Sturdiness)
+            const stemThickScale = d3.scaleLinear().domain([0, 30]).range([2, 12]).clamp(true);
+
+            const colors = {
+                "Europe": "#b91c1c", // Red
+                "Asia": "#d97706",   // Amber
+                "Africa": "#15803d", // Green
+                "Middle East": "#1d4ed8", // Blue
+                "Americas": "#7e22ce" // Purple
+            };
+
+            const g = svg.append("g");
+
+            g.append("defs").append("clipPath")
+                .attr("id", "ground-clip")
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", -height) // Start well above
+                .attr("width", width)
+                .attr("height", height + groundY); // Ensure it covers down to groundY
+
+            // Axis
+            const xAxis = d3.axisBottom(xScale).tickFormat(d3.format("d")).ticks(totalYears / 5);
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", `translate(0, ${groundY})`)
+                .call(xAxis)
+                .selectAll("text").attr("class", "axis-text").style("text-anchor", "middle").attr("dy", "2em");
+            g.select(".domain").remove();
+
+            // Add prominent event markers (World Wars, etc)
+            const events = [
+                { y: 1914, l: "WWI Start" },
+                { y: 1918, l: "WWI End" },
+                { y: 1939, l: "WWII Start" },
+                { y: 1945, l: "WWII End" },
+                { y: 1989, l: "Cold War End" },
+                { y: 2001, l: "9/11 War on Terror" },
+                { y: 2020, l: "COVID Era Instability" }
+            ];
+
+            events.forEach(ev => {
+                if (ev.y >= startYear && ev.y <= endYear) {
+                    const xPos = xScale(ev.y);
+                    g.append("line")
+                        .attr("x1", xPos)
+                        .attr("y1", groundY)
+                        .attr("x2", xPos)
+                        .attr("y2", groundY + 10)
+                        .attr("stroke", "#555")
+                        .attr("stroke-width", 1);
+
+                    // Stagger labels or put them slightly below axis text?
+                    // Axis text is at dy=2em (~30px). Let's put these above the axis line? 
+                    // Or keep them minimal.
+                }
+            });
+
+            // Ground line (drawn after clip defs)
+            g.append("path")
+                .attr("d", `M 0 ${groundY} L ${width} ${groundY}`)
+                .attr("stroke", "var(--axis-line-color)")
+                .attr("stroke-width", 3)
+                .attr("fill", "none");
+
+            const flowerGroup = g.selectAll(".flower-group")
+                .data(data)
+                .enter()
+                .append("g")
+                .attr("class", (d, i) => {
+                    const classes = ["flower-group", "waiting"];
+                    if (d.e >= 2024) classes.push("ongoing"); // Add pulsing glow to ongoing conflicts
+                    return classes.join(" ");
+                })
+                // ANCHORED BASE: Start year
+                .style("transform-origin", d => `${xScale(d.s)}px ${groundY}px`)
+                .style("animation", d => {
+                    const duration = 5 + Math.random() * 6; // Slower, deeper
+                    const delay = Math.random() * -10;
+                    const type = Math.random() > 0.7 ? "deep-sway" : "sway";
+                    return `${type} ${duration}s ease-in-out infinite ${delay}s`;
+                });
+
+            // STEMS (Span Start->End, Height=Rate, Curved)
+            // Apply Clip Path to stems to prevent thick strokes from poking below ground
+            const stems = flowerGroup.append("g").attr("clip-path", "url(#ground-clip)");
+
+            stems.append("path")
+                .attr("class", "stem")
+                .attr("stroke", d => colors[d.r]) // Color stem by region
+                .attr("stroke-width", d => Math.max(1.5, rScale(d.d) / 12))
+                .attr("stroke-dasharray", d => (d.e >= 2024) ? "3,3" : "none") // Dashed for ongoing
+                .attr("stroke-opacity", d => (d.e >= 2024) ? 1.0 : 0.8) // Brighter for ongoing
+                .attr("d", d => {
+                    d.startX = xScale(d.s);
+                    d.endX = xScale(d.e);
+                    d.startY = groundY;
+
+                    const h = heightScale(d.rate);
+                    d.endY = groundY - h; // Height reflects intensity
+
+                    // Bezier Control Point for curve
+                    // CP is between start and end X, and at the flower's height
+                    d.cpX = d.startX + (d.endX - d.startX) * 0.3;
+                    d.cpY = d.endY;
+
+                    // Calculate angle for flower rotation based on the curve's tangent at the end point
+                    // Tangent vector for Q bezier at t=1 is (P2 - P1) => (endX - cpX, endY - cpY)
+                    const dx = d.endX - d.cpX;
+                    const dy = d.endY - d.cpY;
+                    d.angleDeg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+
+                    return `M ${d.startX} ${d.startY} Q ${d.cpX} ${d.cpY} ${d.endX} ${d.endY}`;
+                });
+
+            // FLOWERS
+            const heads = flowerGroup.append("g")
+                .attr("class", "flower-head")
+                // Initial placement
+                .attr("transform", d => `translate(${d.endX}, ${d.endY}) rotate(${d.angleDeg})`);
+
+            heads.each(function (d) {
+                const el = d3.select(this);
+                const c = colors[d.r];
+
+                const size = rScale(d.d);
+                const petalSize = size * 0.45;
+
+                // Hit Area (Invisible circle behind everything to catch mouse events)
+                // Solves issue where centers feel "empty" or unresponsive
+                el.append("circle")
+                    .attr("r", size)
+                    .attr("fill", "transparent")
+                    .attr("class", "hit-area");
+
+                // Forget-Me-Not Blue Petals
+                // A nice periwinkle blue: #8CA6DB or #93a8d0
+                const petalColor = "#779ecb"; // "Forget-Me-Not" Blue
+
+                // 5 Petals (Forget-Me-Not style)
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i * 72) * (Math.PI / 180);
+                    el.append("circle")
+                        .attr("cx", Math.cos(angle) * petalSize * 0.85)
+                        .attr("cy", Math.sin(angle) * petalSize * 0.85)
+                        .attr("r", petalSize)
+                        .attr("class", "petal")
+                        .attr("fill", petalColor); // All petals are blue
+                }
+
+                // Center -> Region Color
+                // Inner distinct yellow ring? No, user said "center element in the style of the region"
+                // Region color is 'c'.
+                // Forget-me-nots usually have a yellow center. 
+                // We will make the "center" yellow ring -> Region Color
+                // And the very center hole -> White or dark? 
+                // Let's make the main center circle the region color.
+
+                // Outer ring of center - capped to prevent giant centers on large conflicts
+                el.append("circle")
+                    .attr("r", Math.min(size * 0.22, 16))
+                    .attr("fill", c) // Region Color
+                    .attr("stroke", "rgba(0,0,0,0.1)")
+                    .attr("stroke-width", 1);
+
+                // Small white dot in very center for depth (pistil?) - capped size
+                el.append("circle")
+                    .attr("r", Math.min(size * 0.07, 5))
+                    .attr("fill", "#fff")
+                    .attr("fill-opacity", 0.7);
+            });
+
+            // Scroll Logic
+            function reveal() {
+                const scrollLeft = container.scrollLeft;
+                const viewW = container.clientWidth;
+                if (viewW === 0) return;
+                const buffer = 300;
+                d3.selectAll('.flower-group.waiting').each(function (d) {
+                    const x = xScale(d.s);
+                    if (x < (scrollLeft + viewW + buffer)) {
+                        d3.select(this).classed("waiting", false).classed("bloomed", true);
+                    }
+                });
+            }
+
+            container.addEventListener('scroll', reveal);
+            setTimeout(reveal, 100);
+            setTimeout(() => { d3.selectAll('.flower-group.waiting').classed("waiting", false).classed("bloomed", true); }, 1500);
+
+            // Interaction
+            const tooltip = d3.select("#tooltip");
+            let active = null;
+
+            function showTip(event, d, el) {
+                d3.selectAll(".flower-group").style("opacity", 0.35);
+                d3.select(el).style("opacity", 1);
+
+                const deaths = d.d >= 1000000 ? (d.d / 1000000).toFixed(2) + " M" : d3.format(",")(d.d);
+                const rate = Math.round(d.rate).toLocaleString();
+                const color = colors[d.r];
+
+                tooltip.style("opacity", 1).style("border-color", color)
+                    .html(`
+                        <div class="font-bold text-lg mb-1" style="color:${color}">${d.n}</div>
+                        <div class="text-xs uppercase text-gray-500 mb-2 tracking-widest border-b border-gray-400 pb-1">${d.r}</div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <span class="text-gray-600 font-medium">Span</span> <span class="font-bold">${d.s} – ${d.e}</span>
+                            <span class="text-gray-600 font-medium">Deaths</span> <span class="font-bold">${deaths}</span>
+                            <span class="text-gray-600 font-medium">Rate</span> <span class="text-red-700 font-mono">${rate}/yr</span>
+                        </div>
+                    `);
+
+                if (window.innerWidth > 768) {
+                    let left = event.clientX + 20;
+                    let top = event.clientY + 20;
+                    if (left + 300 > window.innerWidth) left -= 340;
+                    tooltip.style("left", left + "px").style("top", top + "px");
+                }
+            }
+
+            function hideTip() {
+                tooltip.style("opacity", 0);
+                d3.selectAll(".flower-group").style("opacity", 1);
+                active = null;
+            }
+
+            flowerGroup
+                .on("mouseenter", function (e, d) {
+                    if (window.matchMedia("(hover: hover)").matches) {
+                        showTip(e, d, this);
+                        d3.select(this).select(".flower-head")
+                            .transition().duration(300).ease(d3.easeBackOut)
+                            .attr("transform", `translate(${d.endX}, ${d.endY}) rotate(${d.angleDeg}) scale(1.2)`);
+                    }
+                })
+                .on("mousemove", function (e) { if (window.matchMedia("(hover: hover)").matches && tooltip.style("opacity") == 1) showTip(e, d3.select(this).datum(), this); })
+                .on("mouseleave", function (e, d) {
+                    hideTip();
+                    d3.select(this).select(".flower-head")
+                        .transition().duration(300)
+                        .attr("transform", `translate(${d.endX}, ${d.endY}) rotate(${d.angleDeg}) scale(1)`);
+                })
+                .on("click", function (e, d) {
+                    e.stopPropagation();
+                    if (active === d) hideTip();
+                    else { active = d; showTip(e, d, this); }
+                });
+
+            document.body.addEventListener('click', hideTip);
+
+            // Horizontal Scroll
+            container.addEventListener("wheel", (evt) => {
+                if (evt.deltaY !== 0) {
+                    evt.preventDefault();
+                    container.scrollLeft += evt.deltaY;
+                }
+            }, { passive: false });
+
+            // Wind Animation
+            initWind(width, height);
+        }
+
+        function initWind(w, h) {
+            const canvas = document.getElementById('wind-layer');
+            if (!canvas) return;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+
+            // Particles - Increased count and density
+            // We'll spawn more particles, and their behavior will depend on their X position
+            const count = 450; // Increased from 300
+            const particles = [];
+
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: Math.random() * w,
+                    y: Math.random() * h * 0.85, // Keep above ground
+                    s: 0.5 + Math.random() * 2, // slightly varied size
+                    baseV: 0.5 + Math.random() * 0.8 // increased base velocity
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, w, h);
+
+                particles.forEach(p => {
+                    // Position dependent properties
+                    const progress = p.x / w;
+
+                    // "Gathering Wind" effect:
+                    // Velocity accelerates significantly as they move right
+                    // progress^2 curve for acceleration
+                    const speedMultiplier = 1 + (progress * progress * 4);
+                    const currentSpeed = p.baseV * speedMultiplier;
+
+                    p.x += currentSpeed;
+
+                    // Reset if out of bounds
+                    if (p.x > w) {
+                        p.x = 0;
+                        p.y = Math.random() * h * 0.85;
+                    }
+
+                    // Opacity & Size increase with progress ('gathering' dust/debris)
+                    // Start faint, get more visible/chaotic
+                    const opacity = 0.1 + (progress * 0.5);
+
+                    // Draw
+                    ctx.beginPath();
+                    const r = p.s * (1 + progress * 0.3); // Slight size increase
+                    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+
+                    // Color matches the "dusty" aesthetic but responds to gradient
+                    ctx.fillStyle = `rgba(120, 100, 80, ${opacity})`;
+                    ctx.fill();
+
+                    // Trail effect - longer trails on the right for speed sensation
+                    if (progress > 0.2) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(120, 100, 80, ${opacity * 0.6})`;
+                        ctx.lineWidth = 0.5 + (progress * 0.5);
+                        ctx.moveTo(p.x, p.y);
+                        // Trail length proportional to speed
+                        ctx.lineTo(p.x - (currentSpeed * (3 + progress * 2)), p.y);
+                        ctx.stroke();
+                    }
+                });
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+        function openModal() {
+            const modal = document.getElementById('info-modal');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.opacity = '1';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('info-modal');
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+            }, 300);
+        }
+
+        // Close modal on outside click
+        document.getElementById('info-modal').addEventListener('click', function (e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
+    <!-- GoatCounter Analytics -->
+    <script data-goatcounter="https://dr.eamer.dev/analytics/count"
+            async src="https://dr.eamer.dev/analytics/count.js"></script>
+</body>
+
+</html>
+```
