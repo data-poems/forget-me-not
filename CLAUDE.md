@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Technology**: Single-file HTML with embedded CSS/JS, D3.js v7, Tailwind CSS 2.2.19 (CDN).
 
-**Live URL**: https://dr.eamer.dev/datavis/forget_me_not/
+**Live URL**: https://dr.eamer.dev/datavis/poems/forget-me-not/
 
 **Parent Documentation**: See `/home/coolhand/html/datavis/CLAUDE.md` for full context.
 
@@ -16,8 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Local development
+cd /home/coolhand/html/datavis/poems/forget-me-not
 python3 -m http.server 8000
-# Open: http://localhost:8000/forget_me_not/
+# Open: http://localhost:8000/
 ```
 
 ## Key File
