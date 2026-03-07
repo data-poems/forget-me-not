@@ -1,14 +1,17 @@
 # FORGET ME NOT
 
+[![Live Site](https://img.shields.io/badge/live-dr.eamer.dev-00ffaa)](https://dr.eamer.dev/datavis/poems/forget-me-not/)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 120+ years of war casualties drawn as a poppy field. Each conflict becomes a forget-me-not flower — stem length shows duration, flower size encodes deaths. Scroll through history as wars bloom and fade, 1900-2025.
 
 ## Visual Encoding
 
 | Element | Data Property | Scale |
 |---------|--------------|-------|
-| Stem span (arc) | Conflict duration | Linear (start → end year) |
+| Stem span (arc) | Conflict duration | Linear (start to end year) |
 | Flower height | Annual casualty rate | Log scale [500, 15M] |
-| Flower size | Total deaths | Sqrt scale [0, 20M] → [18, 140]px |
+| Flower size | Total deaths | Sqrt scale [0, 20M] to [18, 140]px |
 | Center color | Geographic region | 5 categorical colors |
 | Petal color | Forget-me-not blue | Fixed #779ecb |
 
@@ -38,8 +41,7 @@
 ## Files
 
 - `index.html` - Complete single-file application (48KB)
-- `CLAUDE.md` - Development documentation
-- `social-share.png` - Open Graph image (1009KB)
+- `social-share.png` - Open Graph image
 
 ## Data Structure
 
@@ -67,5 +69,8 @@ Note: Casualty figures for historical conflicts vary widely across sources. This
 
 ## Author
 
-Luke Steuber
-https://lukesteuber.com
+Luke Steuber — [dr.eamer.dev](https://dr.eamer.dev) — [@lukesteuber.com](https://bsky.app/profile/lukesteuber.com)
+
+## License
+
+MIT
