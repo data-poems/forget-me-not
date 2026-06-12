@@ -1,7 +1,6 @@
-.claude/
 .playwright-mcp/
 
-# AI tooling cruft
+# Agent tooling cruft
 .claude/
 CLAUDE.md
 GEMINI.md

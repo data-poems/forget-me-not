@@ -3,7 +3,7 @@
 [![Live Site](https://img.shields.io/badge/live-dr.eamer.dev-00ffaa)](https://dr.eamer.dev/datavis/poems/forget-me-not/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-120+ years of war casualties drawn as a poppy field. Each conflict becomes a forget-me-not flower. Stem length shows duration, flower size encodes deaths. Scroll through history as wars bloom and fade, 1900-2025.
+125+ years of war casualties drawn as a poppy field. Each conflict becomes a forget-me-not flower. Stem length shows duration, flower size encodes deaths. Scroll through history as wars bloom and fade, 1899-2025.
 
 ## Visual Encoding
 
@@ -25,11 +25,11 @@
 
 ## Features
 
-- **120+ conflicts**: Major wars with documented casualties
-- **Horizontal timeline**: Scroll through 125 years of history
-- **Interactive hover**: Click any flower for conflict details
+- **100 conflicts**: Major wars with documented casualties
+- **Horizontal timeline**: Scroll through more than a century of history
+- **Interactive flowers**: Hover, click, or focus any flower for conflict details
 - **Perceptual scaling**: Sqrt for area, log for rates
-- **Accessible**: Keyboard navigation, screen reader support
+- **Accessible**: Keyboard navigation, screen reader labels, reduced motion support
 
 ## Technical Stack
 
@@ -40,8 +40,10 @@
 
 ## Files
 
-- `index.html` - Complete single-file application (48KB)
-- `social-share.png` - Open Graph image
+- `index.html` - Complete single-file application
+- `social-share.png` - Open Graph image (1200x762)
+- `highres.png` - High resolution capture
+- `LICENSE` - MIT
 
 ## Data Structure
 
@@ -69,7 +71,7 @@ Note: Casualty figures for historical conflicts vary widely across sources. This
 
 ## Author
 
-Luke Steuber — [dr.eamer.dev](https://dr.eamer.dev) — [@lukesteuber.com](https://bsky.app/profile/lukesteuber.com)
+Luke Steuber · [dr.eamer.dev](https://dr.eamer.dev) · [@lukesteuber.com](https://bsky.app/profile/lukesteuber.com)
 
 ## License
 

@@ -4,24 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/x-icon" href="/assets/images/favicon.ico">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forget Me Not: The Human Cost of War</title>
 
     <!-- Social Share Meta Tags -->
     <meta property="og:title" content="Forget Me Not - The Human Cost of War">
     <meta property="og:description"
-        content="Visualizing global conflict casualties (1900-2025). A homage to the poppy field.">
-    <meta property="og:image" content="https://dr.eamer.dev/datavis/forget_me_not/social-share.png">
-    <meta property="og:image:width" content="1492">
-    <meta property="og:image:height" content="948">
+        content="Visualizing global conflict casualties (1899-2025). A homage to the poppy field.">
+    <meta property="og:image" content="https://dr.eamer.dev/datavis/poems/forget-me-not/social-share.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="762">
     <meta property="og:image:type" content="image/png">
-    <meta property="og:url" content="https://dr.eamer.dev/datavis/forget_me_not/">
+    <meta property="og:url" content="https://dr.eamer.dev/datavis/poems/forget-me-not/">
     <meta property="og:type" content="website">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Forget Me Not - The Human Cost of War">
-    <meta name="twitter:description" content="Visualizing global conflict casualties (1900-2025).">
-    <meta name="twitter:image" content="https://dr.eamer.dev/datavis/forget_me_not/social-share.png">
+    <meta name="twitter:description" content="Visualizing global conflict casualties (1899-2025).">
+    <meta name="twitter:image" content="https://dr.eamer.dev/datavis/poems/forget-me-not/social-share.png">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
@@ -46,21 +46,9 @@
         }
 
         body {
-            /* Gradient applied to scroll container or body? 
-               User wants "to the right... hinting at a storm". 
-               If the timeline is long, a fixed gradient on body might not feel like "to the right" of the timeline.
-               But a gradient on the 50,000px wide div might be invisible locally.
-               Let's try a fixed gradient on the bg that darkens slightly.
-            */
+            /* Storm gradient fallback: the sky darkens toward the present (right).
+               The full-width version is applied to #chart-content in initChart(). */
             background: linear-gradient(to right, #edeae2 0%, #d4d4d4 50%, #6e7f8f 100%);
-            /* 
-               Actually, since the user said "darken the sky gradient TO THE RIGHT" and it's a timeline, 
-               Use a fixed background that represents the viewport? 
-               No, "hinting at a storm" implies the future (right) is stormy. 
-               Since it scrolls, let's put it on the body but make it subtle? 
-               Or maybe on the content div so it gets darker as you scroll to the present day?
-               Let's put it on #chart-content.
-            */
             background-color: var(--bg-color);
             color: var(--text-color);
             font-family: 'Lato', sans-serif;
@@ -183,6 +171,29 @@
             z-index: 100;
         }
 
+        .flower-group:focus-visible {
+            outline: 2px solid var(--header-color);
+            outline-offset: 3px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .flower-group {
+                animation: none !important;
+            }
+
+            .flower-group.ongoing .flower-head {
+                animation: none;
+            }
+
+            .flower-group,
+            .flower-group.waiting,
+            .flower-group.bloomed,
+            .petal,
+            #tooltip {
+                transition: none !important;
+            }
+        }
+
         .flower-group:hover .stem {
             stroke: #000;
             opacity: 1;
@@ -247,46 +258,12 @@
             }
         }
 
-        .soil-gradient {
-            display: none;
-        }
-
-        .texture {
-            display: none;
-        }
-
         /* Header Interaction */
         #header-trigger {
             cursor: pointer;
             position: relative;
             z-index: 60;
-            cursor: pointer;
             /* Higher than flowers */
-        }
-
-        /* Help Icon on timeline */
-        .timeline-help-icon {
-            z-index: 50;
-            background: rgba(255, 255, 255, 0.7);
-            border: 1px solid var(--header-color);
-            color: var(--header-color);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            text-align: center;
-            line-height: 22px;
-            font-size: 14px;
-            font-family: serif;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            opacity: 0.6;
-        }
-
-        .timeline-help-icon:hover {
-            opacity: 1;
-            background: #fff;
-            transform: scale(1.1);
         }
 
         #header-trigger:hover {
@@ -296,21 +273,12 @@
         }
 
         #header-trigger:hover h1 {
-            color: var(--region-europe);
-            /* Subtle hint of interactivity using a color from the chart or just darkening */
+            color: #b91c1c;
+            /* Subtle hint of interactivity using the Europe region red from the chart */
         }
 
-        #info-modal {
-            background-color: rgba(0, 0, 0, 0.5);
-            /* Dimmed backdrop */
-        }
-
-        #info-modal .modal-content {
-            background-color: #fff;
-            /* Solid opaque background */
-            border: 2px solid var(--header-color);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-            opacity: 1;
+        .event-marker {
+            pointer-events: none;
         }
 
         .event-marker line {
@@ -433,12 +401,13 @@
     <div id="tooltip"></div>
 
     <!-- Info Modal -->
-    <div id="info-modal" class="fixed inset-0 z-50 flex items-start justify-center p-4 hidden overflow-y-auto">
+    <div id="info-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        class="fixed inset-0 z-50 flex items-start justify-center p-4 hidden overflow-y-auto">
         <div class="modal-content rounded-lg max-w-2xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
-            <button onclick="closeModal()"
-                class="absolute top-4 right-4 text-sub text-2xl font-bold focus:outline-none">&times;</button>
-            <h2 class="text-3xl font-bold mb-6 font-serif">Conflict Casualties <span
-                    class="text-lg font-normal text-sub block mt-1">(1900 &mdash; 2025)</span></h2>
+            <button onclick="closeModal()" aria-label="Close"
+                class="absolute top-4 right-4 text-sub text-2xl font-bold">&times;</button>
+            <h2 id="modal-title" class="text-3xl font-bold mb-6 font-serif">Conflict Casualties <span
+                    class="text-lg font-normal text-sub block mt-1">(1899 &ndash; 2025)</span></h2>
 
             <div class="space-y-6">
                 <section>
@@ -494,7 +463,7 @@
                             href="http://www.poppyfield.org/" target="_blank" rel="noopener noreferrer"
                             class="underline font-semibold hover:opacity-80">Poppy Field</a>
                         by Valentina D'Efilippo, a visualization made in 2014 to commemorate the centenary of World War
-                        I. It uses the poppy—a symbol of remembrance—to visualize the human cost of conflict. If you
+                        I. It uses the poppy, a symbol of remembrance, to visualize the human cost of conflict. If you
                         find my attempt to be powerful, it is owed entirely to that work.</p>
                     <p class="leading-relaxed mb-4">This data on conflicts and casualties is sourced from various
                         historical records, including the <a href="https://ucdp.uu.se/" target="_blank"
@@ -531,20 +500,6 @@
                 console.error("Chart Init Error:", e);
             }
 
-            // Modal Logic
-            const infoModal = document.getElementById('info-modal');
-            const closeModalBtn = document.getElementById('close-modal-btn');
-
-            function toggleModal() {
-                infoModal.classList.toggle('hidden');
-            }
-
-            if (closeModalBtn) closeModalBtn.addEventListener('click', toggleModal);
-            if (infoModal) infoModal.addEventListener('click', (e) => {
-                if (e.target === infoModal) {
-                    toggleModal();
-                }
-            });
         });
 
         function initChart() {
@@ -688,7 +643,11 @@
 
             const svg = d3.select("#chart-content").append("svg")
                 .attr("width", width)
-                .attr("height", height);
+                .attr("height", height)
+                .attr("role", "group")
+                .attr("aria-label", `Timeline of ${data.length} armed conflicts from 1899 to 2025, drawn as flowers. Each flower is focusable; press Enter for details.`);
+
+            svg.append("title").text("Forget Me Not: conflict casualties, 1899 to 2025");
 
             const xScale = d3.scaleLinear()
                 .domain([startYear, endYear])
@@ -747,20 +706,21 @@
                 { y: 2020, l: "COVID Era Instability" }
             ];
 
-            events.forEach(ev => {
+            events.forEach((ev, i) => {
                 if (ev.y >= startYear && ev.y <= endYear) {
                     const xPos = xScale(ev.y);
-                    g.append("line")
+                    // Staggered label heights so neighbors (1914/1918, 1939/1945) don't collide
+                    const labelY = 96 + (i % 2) * 26;
+                    const marker = g.append("g").attr("class", "event-marker");
+                    marker.append("line")
                         .attr("x1", xPos)
                         .attr("y1", groundY)
                         .attr("x2", xPos)
-                        .attr("y2", groundY + 10)
-                        .attr("stroke", "#555")
-                        .attr("stroke-width", 1);
-
-                    // Stagger labels or put them slightly below axis text?
-                    // Axis text is at dy=2em (~30px). Let's put these above the axis line? 
-                    // Or keep them minimal.
+                        .attr("y2", labelY + 10);
+                    marker.append("text")
+                        .attr("x", xPos)
+                        .attr("y", labelY)
+                        .text(ev.l);
                 }
             });
 
@@ -780,6 +740,9 @@
                     if (d.e >= 2024) classes.push("ongoing"); // Add pulsing glow to ongoing conflicts
                     return classes.join(" ");
                 })
+                .attr("tabindex", 0)
+                .attr("role", "button")
+                .attr("aria-label", d => `${d.n}, ${d.s} to ${d.e}, ${d.d.toLocaleString()} deaths, ${d.r}`)
                 // ANCHORED BASE: Start year
                 .style("transform-origin", d => `${xScale(d.s)}px ${groundY}px`)
                 .style("animation", d => {
@@ -953,6 +916,31 @@
                     e.stopPropagation();
                     if (active === d) hideTip();
                     else { active = d; showTip(e, d, this); }
+                })
+                .on("focus", function (e, d) {
+                    const rect = this.getBoundingClientRect();
+                    showTip({ clientX: rect.left + rect.width / 2, clientY: rect.bottom }, d, this);
+                    d3.select(this).select(".flower-head")
+                        .transition().duration(300).ease(d3.easeBackOut)
+                        .attr("transform", `translate(${d.endX}, ${d.endY}) rotate(${d.angleDeg}) scale(1.2)`);
+                })
+                .on("blur", function (e, d) {
+                    hideTip();
+                    d3.select(this).select(".flower-head")
+                        .transition().duration(300)
+                        .attr("transform", `translate(${d.endX}, ${d.endY}) rotate(${d.angleDeg}) scale(1)`);
+                })
+                .on("keydown", function (e, d) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const rect = this.getBoundingClientRect();
+                        if (active === d) hideTip();
+                        else { active = d; showTip({ clientX: rect.left + rect.width / 2, clientY: rect.bottom }, d, this); }
+                    } else if (e.key === "Escape") {
+                        hideTip();
+                        this.blur();
+                    }
                 });
 
             document.body.addEventListener('click', hideTip);
@@ -989,6 +977,8 @@
                     baseV: 0.5 + Math.random() * 0.8 // increased base velocity
                 });
             }
+
+            const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
             function animate() {
                 ctx.clearRect(0, 0, w, h);
@@ -1036,9 +1026,9 @@
                     }
                 });
 
-                requestAnimationFrame(animate);
+                if (!reducedMotion) requestAnimationFrame(animate);
             }
-            animate();
+            animate(); // With reduced motion, this draws a single static frame
         }
         function openModal() {
             const modal = document.getElementById('info-modal');
@@ -1060,6 +1050,13 @@
         document.getElementById('info-modal').addEventListener('click', function (e) {
             if (e.target === this) closeModal();
         });
+
+        // Close modal on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !document.getElementById('info-modal').classList.contains('hidden')) {
+                closeModal();
+            }
+        });
     </script>
     <!-- GoatCounter Analytics -->
     <script data-goatcounter="https://stats.dr.eamer.dev/count"
@@ -1067,4 +1064,3 @@
 </body>
 
 </html>
-```
