@@ -3,7 +3,7 @@
 [![Live Site](https://img.shields.io/badge/live-dr.eamer.dev-00ffaa)](https://dr.eamer.dev/datavis/poems/forget-me-not/)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-125+ years of war casualties drawn as a poppy field. Each conflict becomes a forget-me-not flower. Stem length shows duration, flower size encodes deaths. Scroll through history as wars bloom and fade, 1899-2025.
+125+ years of war casualties drawn as a poppy field. Each conflict becomes a forget-me-not flower. Stem length shows duration, flower size encodes deaths. Scroll through history as wars bloom and fade, 1899-2026.
 
 ## Visual Encoding
 
@@ -25,7 +25,7 @@
 
 ## Features
 
-- **100 conflicts**: Major wars with documented casualties
+- **101 conflicts**: Major wars with documented casualties
 - **Horizontal timeline**: Scroll through more than a century of history
 - **Interactive flowers**: Hover, click, or focus any flower for conflict details
 - **Perceptual scaling**: Sqrt for area, log for rates
