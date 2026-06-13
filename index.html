@@ -271,6 +271,12 @@
             /* Higher than flowers */
         }
 
+        /* Keep the fixed header readable when scrolled into the dark storm end */
+        #header-trigger h1,
+        #header-trigger p {
+            text-shadow: 0 0 12px rgba(245, 240, 227, 0.85), 0 1px 3px rgba(245, 240, 227, 0.6);
+        }
+
         #header-trigger:hover {
             opacity: 0.8;
             transform: scale(1.02);
@@ -616,6 +622,12 @@
             data.forEach(d => {
                 d.duration = d.e - d.s; // Ongoing conflicts carry e = PRESENT_YEAR directly
                 if (d.duration < 0.8) d.duration = 0.8;
+            });
+
+            // Largest blooms draw first (behind); small flowers stay in front and reachable
+            data.sort((a, b) => b.d - a.d);
+
+            data.forEach(d => {
                 d.rate = d.d / d.duration;
             });
 
@@ -626,7 +638,7 @@
             // Apply Storm Gradient to CONTENT div so it spans the full width
             const contentDiv = document.getElementById('chart-content');
             // Gradient from very light grey (left/past) to dark grey (right/future storm)
-            contentDiv.style.background = "linear-gradient(to right, #f2f2f2 0%, #e2e2e2 40%, #a8a8a8 85%, #787878 100%)";
+            contentDiv.style.background = "linear-gradient(102deg, #f5f0e3 0%, #eae4d4 28%, #cfccc2 52%, #a3a8ad 72%, #6d7989 88%, #4d5a68 100%)";
 
             // X-Axis Compression (decompressed for better visibility)
             const pixelsPerYear = window.innerWidth < 768 ? 25 : 40;
@@ -692,9 +704,9 @@
             // Petal gradients: pale throat to deeper edge, three close variants
             // so the field reads as natural variation rather than stamped copies
             const petalPalettes = [
-                ["#eaf1fa", "#8fb0dc", "#6f96cb"],
-                ["#e4edf8", "#85a8d8", "#6890c6"],
-                ["#eff4fc", "#9ab8e0", "#7b9fd1"]
+                ["#e7eef9", "#82a6d5", "#5f88c1"],
+                ["#e1eaf7", "#789dd0", "#5781bd"],
+                ["#ecf2fb", "#8eafda", "#6f96cb"]
             ];
             petalPalettes.forEach((p, k) => {
                 const lg = defs.append("linearGradient")
@@ -766,6 +778,53 @@
                 .attr("stroke", "var(--axis-line-color)")
                 .attr("stroke-width", 3)
                 .attr("fill", "none");
+
+            // --- Environment: a field under an approaching storm ---
+
+            // Cloud bank building over the right half of the sky
+            defs.append("filter").attr("id", "cloud-blur")
+                .append("feGaussianBlur").attr("stdDeviation", 16);
+            const cloudLayer = g.append("g").attr("filter", "url(#cloud-blur)");
+            const cloudCount = Math.round(width / 170);
+            for (let i = 0; i < cloudCount; i++) {
+                const t = i / (cloudCount - 1); // 0 left edge of the bank, 1 storm front
+                const cx = width * (0.3 + 0.7 * t) + (Math.random() - 0.5) * width * 0.05;
+                const cy = 36 + Math.random() * (groundY * 0.3);
+                cloudLayer.append("ellipse")
+                    .attr("cx", cx).attr("cy", cy)
+                    .attr("rx", 90 + Math.random() * 170)
+                    .attr("ry", 16 + Math.random() * 32)
+                    .attr("fill", t < 0.35 ? "#cfd4d9" : "#5e6c7d")
+                    .attr("fill-opacity", 0.07 + t * 0.3);
+            }
+
+            // Grass along the ground, leaning harder right as the storm nears
+            const grassLayer = g.append("g");
+            const grassColors = ["#6b7a4f", "#7d7a55", "#5c6647", "#86855e"];
+            for (let gx = 0; gx < width; gx += 5 + Math.random() * 5) {
+                const hgt = 5 + Math.random() * 11;
+                const lean = (gx / width) * 14 + (Math.random() - 0.5) * 4;
+                grassLayer.append("path")
+                    .attr("d", `M ${gx} ${groundY} q ${lean * 0.4} ${-hgt * 0.6} ${lean} ${-hgt}`)
+                    .attr("stroke", grassColors[Math.floor(Math.random() * grassColors.length)])
+                    .attr("stroke-width", 1)
+                    .attr("fill", "none")
+                    .attr("stroke-opacity", 0.45 + Math.random() * 0.3);
+            }
+
+            // First rain at the storm front (far right edge)
+            const rainLayer = g.append("g");
+            for (let i = 0; i < 90; i++) {
+                const rx = width * (0.88 + Math.random() * 0.12);
+                const ry = Math.random() * groundY * 0.8;
+                const len = 25 + Math.random() * 45;
+                rainLayer.append("line")
+                    .attr("x1", rx).attr("y1", ry)
+                    .attr("x2", rx - len * 0.18).attr("y2", ry + len)
+                    .attr("stroke", "#51606f")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-opacity", 0.18 + Math.random() * 0.15);
+            }
 
             const flowerGroup = g.selectAll(".flower-group")
                 .data(data)
@@ -843,17 +902,24 @@
                 // and the multiply blend darkens the seams like pressed petals
                 const gradId = `petal-grad-${Math.floor(Math.random() * 3)}`;
                 const petalLen = size * 0.88;
+                const petals = [];
                 for (let i = 0; i < 5; i++) {
-                    const jitterRot = (Math.random() - 0.5) * 7;
-                    const jitterLen = 0.94 + Math.random() * 0.12;
-                    el.append("path")
-                        .attr("class", "petal")
-                        .attr("d", petalPath(petalLen * jitterLen))
-                        .attr("transform", `rotate(${i * 72 + jitterRot}) translate(0, ${-size * 0.16})`)
-                        .attr("fill", `url(#${gradId})`)
-                        .attr("stroke", "rgba(70, 100, 150, 0.35)")
-                        .attr("stroke-width", Math.max(0.5, size * 0.012));
+                    petals.push({
+                        d: petalPath(petalLen * (0.94 + Math.random() * 0.12)),
+                        t: `rotate(${i * 72 + (Math.random() - 0.5) * 7}) translate(0, ${-size * 0.16})`
+                    });
                 }
+                // Opaque paper underlay beneath the whole corolla: petals read solid
+                // against sky, stems, and larger blooms behind, while petal-on-petal
+                // overlaps above still multiply into darker seams
+                petals.forEach(p => el.append("path")
+                    .attr("d", p.d).attr("transform", p.t).attr("fill", "#fbfaf5"));
+                petals.forEach(p => el.append("path")
+                    .attr("class", "petal")
+                    .attr("d", p.d).attr("transform", p.t)
+                    .attr("fill", `url(#${gradId})`)
+                    .attr("stroke", "rgba(70, 100, 150, 0.45)")
+                    .attr("stroke-width", Math.max(0.5, size * 0.012)));
 
                 // Center ring carries the region color, capped to prevent giant centers on large conflicts
                 const centerR = Math.min(size * 0.22, 16);
