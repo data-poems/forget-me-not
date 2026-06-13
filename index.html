@@ -703,10 +703,15 @@
 
             // Petal gradients: pale throat to deeper edge, three close variants
             // so the field reads as natural variation rather than stamped copies
+            // Forget-me-nots range from sky blue through violet to pink-budded and
+            // near-white forms; six palettes keep the field varied but kindred
             const petalPalettes = [
-                ["#e7eef9", "#82a6d5", "#5f88c1"],
-                ["#e1eaf7", "#789dd0", "#5781bd"],
-                ["#ecf2fb", "#8eafda", "#6f96cb"]
+                ["#e7eef9", "#82a6d5", "#5f88c1"], // classic blue
+                ["#e1eaf7", "#789dd0", "#5781bd"], // deep blue
+                ["#ecf2fb", "#8eafda", "#6f96cb"], // soft periwinkle
+                ["#eae9f8", "#9290d2", "#7472bd"], // violet
+                ["#f3e9f4", "#bd93c9", "#a577b3"], // pink-violet bud
+                ["#f2f5fb", "#aac2e4", "#8aa8d4"]  // pale ice
             ];
             petalPalettes.forEach((p, k) => {
                 const lg = defs.append("linearGradient")
@@ -718,9 +723,9 @@
             });
 
             // Rounded-obovate petal with a soft notch at the tip, drawn pointing up
-            // from the origin; length L sets the scale
-            function petalPath(L) {
-                const W = L * 0.62;
+            // from the origin; length L sets the scale, wf the width factor
+            function petalPath(L, wf = 0.62) {
+                const W = L * wf;
                 return `M 0 0` +
                     ` C ${-W * 0.9} ${-L * 0.05}, ${-W} ${-L * 0.45}, ${-W * 0.84} ${-L * 0.74}` +
                     ` C ${-W * 0.66} ${-L * 0.98}, ${-W * 0.22} ${-L * 1.04}, 0 ${-L * 0.93}` +
@@ -781,10 +786,30 @@
 
             // --- Environment: a field under an approaching storm ---
 
-            // Cloud bank building over the right half of the sky
+            // Low sun still showing at the calm end of the century
+            const sunGrad = defs.append("radialGradient").attr("id", "sun-glow");
+            sunGrad.append("stop").attr("offset", "0%").attr("stop-color", "#fdf6dd").attr("stop-opacity", 0.85);
+            sunGrad.append("stop").attr("offset", "45%").attr("stop-color", "#f8eecb").attr("stop-opacity", 0.35);
+            sunGrad.append("stop").attr("offset", "100%").attr("stop-color", "#f8eecb").attr("stop-opacity", 0);
+            g.append("circle")
+                .attr("cx", width * 0.05).attr("cy", 110).attr("r", 210)
+                .attr("fill", "url(#sun-glow)");
+
+            // Cloud bank building over the right half of the sky, plus fair-weather
+            // wisps drifting through the calm left
             defs.append("filter").attr("id", "cloud-blur")
                 .append("feGaussianBlur").attr("stdDeviation", 16);
             const cloudLayer = g.append("g").attr("filter", "url(#cloud-blur)");
+            const wispCount = Math.round(width / 400);
+            for (let i = 0; i < wispCount; i++) {
+                cloudLayer.append("ellipse")
+                    .attr("cx", width * (0.02 + Math.random() * 0.42))
+                    .attr("cy", 30 + Math.random() * (groundY * 0.22))
+                    .attr("rx", 70 + Math.random() * 130)
+                    .attr("ry", 8 + Math.random() * 14)
+                    .attr("fill", "#f6f1e2")
+                    .attr("fill-opacity", 0.25 + Math.random() * 0.25);
+            }
             const cloudCount = Math.round(width / 170);
             for (let i = 0; i < cloudCount; i++) {
                 const t = i / (cloudCount - 1); // 0 left edge of the bank, 1 storm front
@@ -798,16 +823,75 @@
                     .attr("fill-opacity", 0.07 + t * 0.3);
             }
 
-            // Grass along the ground, leaning harder right as the storm nears
+            // A few distant birds heading away from the weather
+            const birdLayer = g.append("g");
+            const birdCount = Math.round(width / 600);
+            for (let i = 0; i < birdCount; i++) {
+                const bx = width * (0.04 + Math.random() * 0.5);
+                const by = 35 + Math.random() * (groundY * 0.3);
+                const s = 0.7 + Math.random() * 0.8;
+                birdLayer.append("path")
+                    .attr("d", `M ${bx} ${by} q ${4 * s} ${-3.5 * s} ${8 * s} 0 q ${4 * s} ${-3.5 * s} ${8 * s} 0`)
+                    .attr("stroke", "#5a5a52")
+                    .attr("stroke-width", 1.1)
+                    .attr("fill", "none")
+                    .attr("stroke-opacity", 0.4 + Math.random() * 0.25);
+            }
+
+            // Soil band beneath the ground line, warm earth fading downward
+            const soilGrad = defs.append("linearGradient")
+                .attr("id", "soil-grad")
+                .attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 1);
+            soilGrad.append("stop").attr("offset", "0%").attr("stop-color", "#b9a883").attr("stop-opacity", 0.55);
+            soilGrad.append("stop").attr("offset", "35%").attr("stop-color", "#c7b794").attr("stop-opacity", 0.3);
+            soilGrad.append("stop").attr("offset", "100%").attr("stop-color", "#d3c5a5").attr("stop-opacity", 0.12);
+            g.append("rect")
+                .attr("x", 0).attr("y", groundY)
+                .attr("width", width).attr("height", height - groundY)
+                .attr("fill", "url(#soil-grad)");
+
+            // Pebbles and fallen petals scattered on the soil
+            const groundScatter = g.append("g");
+            for (let sx = 0; sx < width; sx += 30 + Math.random() * 50) {
+                groundScatter.append("circle")
+                    .attr("cx", sx + Math.random() * 20)
+                    .attr("cy", groundY + 5 + Math.random() * 13)
+                    .attr("r", 0.8 + Math.random() * 1.2)
+                    .attr("fill", "#a3967b")
+                    .attr("fill-opacity", 0.4 + Math.random() * 0.3);
+            }
+            for (let sx = 40; sx < width; sx += 45 + Math.random() * 75) {
+                const p = petalPalettes[Math.floor(Math.random() * petalPalettes.length)];
+                groundScatter.append("path")
+                    .attr("d", petalPath(5 + Math.random() * 5))
+                    .attr("transform", `translate(${sx}, ${groundY + 6 + Math.random() * 11}) rotate(${Math.random() * 360})`)
+                    .attr("fill", p[1])
+                    .attr("fill-opacity", 0.3 + Math.random() * 0.25);
+            }
+
+            // Grass along the ground in two rows for depth, leaning harder
+            // right as the storm nears
             const grassLayer = g.append("g");
-            const grassColors = ["#6b7a4f", "#7d7a55", "#5c6647", "#86855e"];
-            for (let gx = 0; gx < width; gx += 5 + Math.random() * 5) {
-                const hgt = 5 + Math.random() * 11;
-                const lean = (gx / width) * 14 + (Math.random() - 0.5) * 4;
+            const grassBack = ["#9aa179", "#a8a584", "#8f9871"];
+            const grassFront = ["#6b7a4f", "#7d7a55", "#5c6647", "#86855e"];
+            for (let gx = 0; gx < width; gx += 3.5 + Math.random() * 4) {
+                const hgt = 3 + Math.random() * 7;
+                const lean = (gx / width) * 11 + (Math.random() - 0.5) * 4;
                 grassLayer.append("path")
                     .attr("d", `M ${gx} ${groundY} q ${lean * 0.4} ${-hgt * 0.6} ${lean} ${-hgt}`)
-                    .attr("stroke", grassColors[Math.floor(Math.random() * grassColors.length)])
-                    .attr("stroke-width", 1)
+                    .attr("stroke", grassBack[Math.floor(Math.random() * grassBack.length)])
+                    .attr("stroke-width", 0.8)
+                    .attr("fill", "none")
+                    .attr("stroke-opacity", 0.35 + Math.random() * 0.25);
+            }
+            for (let gx = 0; gx < width; gx += 3 + Math.random() * 4.5) {
+                const tall = Math.random() < 0.07; // occasional seed-head blade
+                const hgt = (5 + Math.random() * 11) * (tall ? 1.9 : 1);
+                const lean = (gx / width) * 15 + (Math.random() - 0.5) * 5;
+                grassLayer.append("path")
+                    .attr("d", `M ${gx} ${groundY} q ${lean * 0.4} ${-hgt * 0.6} ${lean} ${-hgt}`)
+                    .attr("stroke", grassFront[Math.floor(Math.random() * grassFront.length)])
+                    .attr("stroke-width", 0.9 + Math.random() * 0.7)
                     .attr("fill", "none")
                     .attr("stroke-opacity", 0.45 + Math.random() * 0.3);
             }
@@ -899,14 +983,18 @@
                     .attr("class", "hit-area");
 
                 // 5 shaped petals with organic jitter; neighbors slightly overlap,
-                // and the multiply blend darkens the seams like pressed petals
-                const gradId = `petal-grad-${Math.floor(Math.random() * 3)}`;
-                const petalLen = size * 0.88;
+                // and the multiply blend darkens the seams like pressed petals.
+                // Per-flower palette, petal width, and base rotation keep each
+                // bloom an individual rather than a stamped copy
+                const gradId = `petal-grad-${Math.floor(Math.random() * petalPalettes.length)}`;
+                const petalLen = size * (0.82 + Math.random() * 0.1);
+                const widthFactor = 0.54 + Math.random() * 0.16;
+                const baseRot = Math.random() * 72;
                 const petals = [];
                 for (let i = 0; i < 5; i++) {
                     petals.push({
-                        d: petalPath(petalLen * (0.94 + Math.random() * 0.12)),
-                        t: `rotate(${i * 72 + (Math.random() - 0.5) * 7}) translate(0, ${-size * 0.16})`
+                        d: petalPath(petalLen * (0.94 + Math.random() * 0.12), widthFactor),
+                        t: `rotate(${baseRot + i * 72 + (Math.random() - 0.5) * 7}) translate(0, ${-size * 0.16})`
                     });
                 }
                 // Opaque paper underlay beneath the whole corolla: petals read solid
@@ -924,11 +1012,13 @@
                 // Center ring carries the region color, capped to prevent giant centers on large conflicts
                 const centerR = Math.min(size * 0.22, 16);
 
-                // Thin yellow corona between petals and center, the forget-me-not's signature eye
+                // Thin yellow corona between petals and center, the forget-me-not's
+                // signature eye; gold varies slightly bloom to bloom
+                const coronaGolds = ["#e9b84a", "#e3a93f", "#f0c45e"];
                 el.append("circle")
                     .attr("r", centerR * 1.18)
                     .attr("fill", "none")
-                    .attr("stroke", "#e9b84a")
+                    .attr("stroke", coronaGolds[Math.floor(Math.random() * 3)])
                     .attr("stroke-width", Math.max(1.2, centerR * 0.32))
                     .attr("stroke-opacity", 0.9);
 
