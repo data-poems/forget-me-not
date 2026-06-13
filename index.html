@@ -81,7 +81,8 @@
             border-radius: 4px;
         }
 
-        /* Flower Sway Animation */
+        /* Flower Sway Animation: amplitude set per flower via --sway-amp,
+           so blooms near the storm front whip harder than the calm 1900s */
         @keyframes sway {
 
             0%,
@@ -90,11 +91,11 @@
             }
 
             25% {
-                transform: rotate(1.5deg);
+                transform: rotate(calc(var(--sway-amp, 1.5) * 1deg));
             }
 
             75% {
-                transform: rotate(-1.5deg);
+                transform: rotate(calc(var(--sway-amp, 1.5) * -1deg));
             }
         }
 
@@ -106,11 +107,11 @@
             }
 
             33% {
-                transform: rotate(2deg) translateX(2px);
+                transform: rotate(calc(var(--sway-amp, 1.5) * 1.3deg)) translateX(calc(var(--sway-amp, 1.5) * 1.3px));
             }
 
             66% {
-                transform: rotate(-2deg) translateX(-2px);
+                transform: rotate(calc(var(--sway-amp, 1.5) * -1.3deg)) translateX(calc(var(--sway-amp, 1.5) * -1.3px));
             }
         }
 
@@ -704,14 +705,15 @@
             // Petal gradients: pale throat to deeper edge, three close variants
             // so the field reads as natural variation rather than stamped copies
             // Forget-me-nots range from sky blue through violet to pink-budded and
-            // near-white forms; six palettes keep the field varied but kindred
+            // near-white forms. Palettes are ordered warm to cold: era-weighted
+            // selection cools the field as the century darkens
             const petalPalettes = [
-                ["#e7eef9", "#82a6d5", "#5f88c1"], // classic blue
-                ["#e1eaf7", "#789dd0", "#5781bd"], // deep blue
+                ["#f3e9f4", "#bd93c9", "#a577b3"], // pink-violet bud (warmest)
+                ["#f2f5fb", "#aac2e4", "#8aa8d4"], // pale ice
                 ["#ecf2fb", "#8eafda", "#6f96cb"], // soft periwinkle
+                ["#e7eef9", "#82a6d5", "#5f88c1"], // classic blue
                 ["#eae9f8", "#9290d2", "#7472bd"], // violet
-                ["#f3e9f4", "#bd93c9", "#a577b3"], // pink-violet bud
-                ["#f2f5fb", "#aac2e4", "#8aa8d4"]  // pale ice
+                ["#e1eaf7", "#789dd0", "#5781bd"]  // deep blue (coldest)
             ];
             petalPalettes.forEach((p, k) => {
                 const lg = defs.append("linearGradient")
@@ -721,6 +723,13 @@
                 lg.append("stop").attr("offset", "55%").attr("stop-color", p[1]);
                 lg.append("stop").attr("offset", "100%").attr("stop-color", p[2]);
             });
+            // Ongoing wars bloom in cold steel: the red pulse is the only warmth left
+            const steel = defs.append("linearGradient")
+                .attr("id", "petal-grad-steel")
+                .attr("x1", 0).attr("y1", 1).attr("x2", 0).attr("y2", 0);
+            steel.append("stop").attr("offset", "0%").attr("stop-color", "#e4e9ee");
+            steel.append("stop").attr("offset", "55%").attr("stop-color", "#7b93ad");
+            steel.append("stop").attr("offset", "100%").attr("stop-color", "#5a7390");
 
             // Rounded-obovate petal with a soft notch at the tip, drawn pointing up
             // from the origin; length L sets the scale, wf the width factor
@@ -742,19 +751,26 @@
                 .selectAll("text").attr("class", "axis-text").style("text-anchor", "middle").attr("dy", "2em");
             g.select(".domain").remove();
 
-            // Add prominent event markers (World Wars, etc)
+            // Era markers spanning the century's turning points, deliberately
+            // global rather than Western-centric
             const events = [
                 { y: 1914, l: "WWI Start" },
+                { y: 1917, l: "Russian Revolution" },
                 { y: 1918, l: "WWI End" },
                 { y: 1929, l: "Great Depression" },
                 { y: 1939, l: "WWII Start" },
                 { y: 1945, l: "WWII End" },
-                { y: 1947, l: "Cold War Begins" },
+                { y: 1947, l: "Partition of India" },
+                { y: 1949, l: "Chinese Revolution" },
+                { y: 1960, l: "Year of Africa" },
                 { y: 1962, l: "Cuban Missile Crisis" },
                 { y: 1975, l: "Fall of Saigon" },
+                { y: 1979, l: "Iranian Revolution" },
                 { y: 1989, l: "Berlin Wall Falls" },
                 { y: 1991, l: "USSR Dissolves" },
+                { y: 1994, l: "Rwandan Genocide" },
                 { y: 2001, l: "9/11 War on Terror" },
+                { y: 2008, l: "Global Financial Crisis" },
                 { y: 2011, l: "Arab Spring" },
                 { y: 2020, l: "COVID Era Instability" }
             ];
@@ -762,8 +778,8 @@
             events.forEach((ev, i) => {
                 if (ev.y >= startYear && ev.y <= endYear) {
                     const xPos = xScale(ev.y);
-                    // Staggered label heights so neighbors (1914/1918, 1939/1945) don't collide
-                    const labelY = 96 + (i % 2) * 26;
+                    // Three-tier stagger so tight neighbors (1914/1917/1918) don't collide
+                    const labelY = 88 + (i % 3) * 24;
                     const marker = g.append("g").attr("class", "event-marker");
                     marker.append("line")
                         .attr("x1", xPos)
@@ -869,45 +885,67 @@
                     .attr("fill-opacity", 0.3 + Math.random() * 0.25);
             }
 
-            // Grass along the ground in two rows for depth, leaning harder
-            // right as the storm nears
+            // Grass along the ground in two rows for depth, leaning harder right
+            // as the storm nears and dying back to straw at the front
             const grassLayer = g.append("g");
             const grassBack = ["#9aa179", "#a8a584", "#8f9871"];
             const grassFront = ["#6b7a4f", "#7d7a55", "#5c6647", "#86855e"];
+            const strawAt = gx => Math.max(0, (gx / width - 0.55) / 0.45); // 0 healthy, 1 dead
             for (let gx = 0; gx < width; gx += 3.5 + Math.random() * 4) {
+                const tt = strawAt(gx);
+                if (Math.random() < tt * 0.4) continue; // thinning cover
                 const hgt = 3 + Math.random() * 7;
                 const lean = (gx / width) * 11 + (Math.random() - 0.5) * 4;
+                const base = grassBack[Math.floor(Math.random() * grassBack.length)];
                 grassLayer.append("path")
                     .attr("d", `M ${gx} ${groundY} q ${lean * 0.4} ${-hgt * 0.6} ${lean} ${-hgt}`)
-                    .attr("stroke", grassBack[Math.floor(Math.random() * grassBack.length)])
+                    .attr("stroke", d3.interpolateRgb(base, "#8d8068")(tt * 0.85))
                     .attr("stroke-width", 0.8)
                     .attr("fill", "none")
                     .attr("stroke-opacity", 0.35 + Math.random() * 0.25);
             }
             for (let gx = 0; gx < width; gx += 3 + Math.random() * 4.5) {
+                const tt = strawAt(gx);
+                if (Math.random() < tt * 0.45) continue;
                 const tall = Math.random() < 0.07; // occasional seed-head blade
                 const hgt = (5 + Math.random() * 11) * (tall ? 1.9 : 1);
                 const lean = (gx / width) * 15 + (Math.random() - 0.5) * 5;
+                const base = grassFront[Math.floor(Math.random() * grassFront.length)];
                 grassLayer.append("path")
                     .attr("d", `M ${gx} ${groundY} q ${lean * 0.4} ${-hgt * 0.6} ${lean} ${-hgt}`)
-                    .attr("stroke", grassFront[Math.floor(Math.random() * grassFront.length)])
+                    .attr("stroke", d3.interpolateRgb(base, "#857a62")(tt * 0.85))
                     .attr("stroke-width", 0.9 + Math.random() * 0.7)
                     .attr("fill", "none")
                     .attr("stroke-opacity", 0.45 + Math.random() * 0.3);
             }
 
-            // First rain at the storm front (far right edge)
+            // Bare mud showing through where the grass has died
+            for (let i = 0; i < Math.round(width / 400); i++) {
+                const mx = width * (0.78 + Math.random() * 0.22);
+                grassLayer.append("ellipse")
+                    .attr("cx", mx).attr("cy", groundY + 3 + Math.random() * 6)
+                    .attr("rx", 25 + Math.random() * 50)
+                    .attr("ry", 2.5 + Math.random() * 3)
+                    .attr("fill", "#6e6353")
+                    .attr("fill-opacity", 0.10 + strawAt(mx) * 0.18);
+            }
+
+            // Rain building from first drizzle (~72% across the century) to a
+            // dense slant at the storm front
             const rainLayer = g.append("g");
-            for (let i = 0; i < 90; i++) {
-                const rx = width * (0.88 + Math.random() * 0.12);
-                const ry = Math.random() * groundY * 0.8;
-                const len = 25 + Math.random() * 45;
+            const rainCount = Math.round(width * 0.05);
+            for (let i = 0; i < rainCount; i++) {
+                const u = Math.pow(Math.random(), 0.5); // density biased toward the front
+                const rx = width * (0.72 + 0.28 * u);
+                const tt = (rx / width - 0.72) / 0.28;
+                const ry = Math.random() * groundY * 0.85;
+                const len = 18 + Math.random() * 30 + tt * 25;
                 rainLayer.append("line")
                     .attr("x1", rx).attr("y1", ry)
-                    .attr("x2", rx - len * 0.18).attr("y2", ry + len)
+                    .attr("x2", rx - len * (0.08 + 0.16 * tt)).attr("y2", ry + len)
                     .attr("stroke", "#51606f")
-                    .attr("stroke-width", 1)
-                    .attr("stroke-opacity", 0.18 + Math.random() * 0.15);
+                    .attr("stroke-width", 0.8 + tt * 0.5)
+                    .attr("stroke-opacity", 0.08 + tt * 0.28);
             }
 
             const flowerGroup = g.selectAll(".flower-group")
@@ -924,8 +962,15 @@
                 .attr("aria-label", d => `${d.n}, ${d.s} to ${d.e}, ${d.d.toLocaleString()} deaths, ${d.r}`)
                 // ANCHORED BASE: Start year
                 .style("transform-origin", d => `${xScale(d.s)}px ${groundY}px`)
+                .style("--sway-amp", d => {
+                    // Wind builds toward the storm: barely moving in 1899,
+                    // whipping by the present
+                    const t = (d.s - startYear) / (endYear - startYear);
+                    return (0.6 + t * t * 3.4).toFixed(2);
+                })
                 .style("animation", d => {
-                    const duration = 5 + Math.random() * 6; // Slower, deeper
+                    const t = (d.s - startYear) / (endYear - startYear);
+                    const duration = (7 - t * 3.5) + Math.random() * 3; // Gusts come faster near the front
                     const delay = Math.random() * -10;
                     const type = Math.random() > 0.7 ? "deep-sway" : "sway";
                     return `${type} ${duration}s ease-in-out infinite ${delay}s`;
@@ -985,8 +1030,18 @@
                 // 5 shaped petals with organic jitter; neighbors slightly overlap,
                 // and the multiply blend darkens the seams like pressed petals.
                 // Per-flower palette, petal width, and base rotation keep each
-                // bloom an individual rather than a stamped copy
-                const gradId = `petal-grad-${Math.floor(Math.random() * petalPalettes.length)}`;
+                // bloom an individual. Palette choice cools with the era: warm
+                // pinks likelier in the calm decades, deep blues near the storm,
+                // steel for wars still burning
+                let gradId;
+                if (d.e >= 2026) {
+                    gradId = "petal-grad-steel";
+                } else {
+                    const t = (d.s - startYear) / (endYear - startYear);
+                    const idx = Math.max(0, Math.min(petalPalettes.length - 1,
+                        Math.round(t * (petalPalettes.length - 1) + (Math.random() - 0.5) * 2.2)));
+                    gradId = `petal-grad-${idx}`;
+                }
                 const petalLen = size * (0.82 + Math.random() * 0.1);
                 const widthFactor = 0.54 + Math.random() * 0.16;
                 const baseRot = Math.random() * 72;
