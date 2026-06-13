@@ -131,17 +131,23 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
             opacity: 1;
-            transition: opacity 0.6s ease-out;
+            /* filter handles hover dimming on its own fast track, independent of
+               the slow bloom-reveal opacity transitions below */
+            transition: opacity 0.6s ease-out, filter 0.2s ease-out;
+        }
+
+        .flower-group.dim {
+            filter: opacity(0.35);
         }
 
         .flower-group.waiting {
             opacity: 0;
-            transition: opacity 2s ease-in-out;
+            transition: opacity 2s ease-in-out, filter 0.2s ease-out;
         }
 
         .flower-group.bloomed {
             opacity: 1;
-            transition: opacity 4s ease-in-out;
+            transition: opacity 4s ease-in-out, filter 0.2s ease-out;
         }
 
         .flower-group.ongoing .flower-head {
@@ -195,9 +201,8 @@
         }
 
         .flower-group:hover .stem {
-            stroke: #000;
+            /* Keep the region-colored stroke; just bring it to full strength */
             opacity: 1;
-            stroke-width: 2px;
         }
 
         .flower-group:hover .petal {
@@ -699,10 +704,16 @@
             const events = [
                 { y: 1914, l: "WWI Start" },
                 { y: 1918, l: "WWI End" },
+                { y: 1929, l: "Great Depression" },
                 { y: 1939, l: "WWII Start" },
                 { y: 1945, l: "WWII End" },
-                { y: 1989, l: "Cold War End" },
+                { y: 1947, l: "Cold War Begins" },
+                { y: 1962, l: "Cuban Missile Crisis" },
+                { y: 1975, l: "Fall of Saigon" },
+                { y: 1989, l: "Berlin Wall Falls" },
+                { y: 1991, l: "USSR Dissolves" },
                 { y: 2001, l: "9/11 War on Terror" },
+                { y: 2011, l: "Arab Spring" },
                 { y: 2020, l: "COVID Era Instability" }
             ];
 
@@ -864,8 +875,8 @@
             let active = null;
 
             function showTip(event, d, el) {
-                d3.selectAll(".flower-group").style("opacity", 0.35);
-                d3.select(el).style("opacity", 1);
+                d3.selectAll(".flower-group").classed("dim", true);
+                d3.select(el).classed("dim", false);
 
                 const deaths = d.d >= 1000000 ? (d.d / 1000000).toFixed(2) + " M" : d3.format(",")(d.d);
                 const rate = Math.round(d.rate).toLocaleString();
@@ -892,7 +903,7 @@
 
             function hideTip() {
                 tooltip.style("opacity", 0);
-                d3.selectAll(".flower-group").style("opacity", 1);
+                d3.selectAll(".flower-group").classed("dim", false);
                 active = null;
             }
 
